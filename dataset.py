@@ -74,11 +74,16 @@ def main():
     df["count"] = df.groupby("id")["id"].transform("count")
     df = df[df["count"] >= 10]
     
-    print("Number of labels:", len(pd.unique(df["id"])))
+    # Re-label images
+    df_new = pd.DataFrame({"id" : pd.unique(df["id"])}).reset_index(names="new_id")
+    df = df.merge(df_new, how="left", on="id")
     
+    print("Number of labels:", len(pd.unique(df["new_id"])))
+    
+
     # Split dataset into 20% test and 80% training data
-    filenames_train, filenames_test, id_train, id_test = train_test_split(np.array(df["filename"]), np.array(df["id"]), 
-                                                                          stratify=np.array(df["id"]), test_size=0.2, random_state=42)
+    filenames_train, filenames_test, id_train, id_test = train_test_split(np.array(df["filename"]), np.array(df["new_id"]), 
+                                                                          stratify=np.array(df["new_id"]), test_size=0.2, random_state=42)
     
     # Split training data again into 20% validation and 80% training data
     filenames_train, filenames_val, id_train, id_val = train_test_split(filenames_train, id_train, stratify=id_train, test_size=0.2, random_state=123)
@@ -101,6 +106,7 @@ def main():
         shutil.copyfile(os.path.join(args.img_dir, filenames_test[i]), 
                         os.path.join(args.test_dir, filenames_test[i].split('.')[0]+"_id-"+str(id_test[i])+".jpg"))
     
+
  
 if __name__ == '__main__':
     main()
