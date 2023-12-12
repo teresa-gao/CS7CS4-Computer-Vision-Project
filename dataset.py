@@ -11,7 +11,7 @@ Prerequisites:
 2. Unzip Img/img_align_celeba.zip
 
 Example usage:
-    python dataset.py --train-dir train --val-dir validation --test-dir test --img-dir ../downloads/img_align_celeba --id-file ../downloads/identity_CelebA.txt
+    python dataset.py --img-dir ../downloads/img_align_celeba --id-file ../downloads/identity_CelebA.txt
 
 @author: K. Nolle
 """
@@ -28,9 +28,6 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--img-dir', help='Directory with unzipped images', type=str)
     parser.add_argument('--id-file', help='File name with identities', type=str)
-    parser.add_argument('--train-dir', help='Directory to store training data', type=str)
-    parser.add_argument('--val-dir', help='Directory to store validation data', type=str)
-    parser.add_argument('--test-dir', help='Directory to store test data', type=str)
     args = parser.parse_args()
     
     if args.img_dir is None:
@@ -41,44 +38,38 @@ def main():
         print("Please specify the file name with identities")
         exit(1)
 
-    if args.train_dir is None:
-        print("Please specify the directory to store training data")
-        exit(1)
-
-    if args.val_dir is None:
-        print("Please specify the directory to store validation data")
-        exit(1)
-
-    if args.test_dir is None:
-        print("Please specify the directory to store test data")
-        exit(1)
         
+    train_dir = "train"
+    val_dir = "validation"
+    test_dir = "test"
+    
+    labels = 500
         
     # Create missing directories
-    if not os.path.exists(args.train_dir):
-        print("Creating output directory " + args.train_dir)
-        os.makedirs(args.train_dir)
+    if not os.path.exists(train_dir):
+        print("Creating output directory " + train_dir)
+        os.makedirs(train_dir)
         
-    if not os.path.exists(args.val_dir):
-        print("Creating output directory " + args.val_dir)
-        os.makedirs(args.val_dir)
+    if not os.path.exists(val_dir):
+        print("Creating output directory " + val_dir)
+        os.makedirs(val_dir)
         
-    if not os.path.exists(args.test_dir):
-        print("Creating output directory " + args.test_dir)
-        os.makedirs(args.test_dir)
+    if not os.path.exists(test_dir):
+        print("Creating output directory " + test_dir)
+        os.makedirs(test_dir)
         
     # Read file with annotations
     df = pd.read_csv(args.id_file, sep=' ', names=["filename", "id"])
 
-    # Remove labels with less than 10 samples 
-    df["count"] = df.groupby("id")["id"].transform("count")
-    df = df[df["count"] >= 10]
+    # Select labels with highest number of samples
+    df_agg = df.groupby("id")["id"].value_counts().sort_values(ascending=False)[:labels].reset_index()
     
     # Re-label images
-    df_new = pd.DataFrame({"id" : pd.unique(df["id"])}).reset_index(names="new_id")
-    df = df.merge(df_new, how="left", on="id")
+    df_new = df_agg.reset_index(names="new_id")
+    df = df.merge(df_new, how="inner", on="id")
     
     print("Number of labels:", len(pd.unique(df["new_id"])))
+    print("Number of total samples:", len(df))
     
 
     # Split dataset into 20% test and 80% training data
@@ -92,20 +83,20 @@ def main():
     print(f"Copying training data ({len(filenames_train)} files)...")
     for i in range(len(filenames_train)):
         shutil.copyfile(os.path.join(args.img_dir, filenames_train[i]), 
-                        os.path.join(args.train_dir, filenames_train[i].split('.')[0]+"_id-"+str(id_train[i])+".jpg"))
+                        os.path.join(train_dir, filenames_train[i].split('.')[0]+"_id-"+str(id_train[i])+".jpg"))
         
     # Copy images in training set to directory and encode id in file name
     print(f"Copying validation data ({len(filenames_val)} files)...")
     for i in range(len(filenames_val)):
         shutil.copyfile(os.path.join(args.img_dir, filenames_val[i]), 
-                        os.path.join(args.val_dir, filenames_val[i].split('.')[0]+"_id-"+str(id_val[i])+".jpg"))
+                        os.path.join(val_dir, filenames_val[i].split('.')[0]+"_id-"+str(id_val[i])+".jpg"))
     
     # Copy images in test set to directory and encode id in file name
     print(f"Copying test data ({len(filenames_test)} files)...")
     for i in range(len(filenames_test)):
         shutil.copyfile(os.path.join(args.img_dir, filenames_test[i]), 
-                        os.path.join(args.test_dir, filenames_test[i].split('.')[0]+"_id-"+str(id_test[i])+".jpg"))
-    
+                        os.path.join(test_dir, filenames_test[i].split('.')[0]+"_id-"+str(id_test[i])+".jpg"))
+
 
  
 if __name__ == '__main__':
