@@ -2,8 +2,7 @@
 """
 CS7GV1 Computer Vision - Create Datasets
 
-This script the CelebA dataset into training, validation and test data and 
-saves them to seperate directories.
+This script splits the CelebA dataset into training, validation and test data and saves them to seperate directories.
 
 Prerequisites: 
 1. Download following files from https://drive.google.com/drive/folders/0B7EVK8r0v71pWEZsZE9oNnFzTm8?resourcekey=0-5BR16BdXnb8hVj6CNHKzLg
