@@ -5,7 +5,7 @@ CS7GV1 Computer Vision - ResNet Model Training
 This script trains ResNet models on data from a specified directory
 
 Example usage:
-    python train.py --train-dir train --val-dir validation --batch-size 128 --output-model-name test --epochs 5
+    python train.py --train-dir train --val-dir validation --batch-size 32 --output-model-name test --epochs 5
 
 @author: K. Nolle
 """
@@ -22,6 +22,8 @@ import h5py
 
 import helper
     
+# Set environment variables to avoid OOM errors
+#os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async'
 
 def main():
     parser = argparse.ArgumentParser()
@@ -54,37 +56,32 @@ def main():
     if args.output_model_name is None:
         print("Please specify a name for the trained model")
         exit(1)
-        
-    #train_dir = "train"
-    #val_dir = "validation"
-    #labels = 500
-    
-    # To downsample image by 2
-    #img_width = 89
-    #img_height = 109
 
 
     # Check if GPU is available
-    if len(tf.config.experimental.list_physical_devices('GPU')) > 0:
-        device = 'GPU:0'
-    else:
-        device = '/device:CPU:0'
+    #if len(tf.config.experimental.list_physical_devices('GPU')) > 0:
+    #    device = 'GPU:0'
+    #else:
+    #    device = '/device:CPU:0'
+    
+    device = '/device:CPU:0'
 
     with tf.device(device):
-        model = helper.create_model()
+        model = helper.create_model(helper.RESNET_18_BLOCKS)
         
         if args.input_model is not None:
             model.load_weights(args.input_model)
 
         model.compile(loss='categorical_crossentropy',
-                      optimizer=keras.optimizers.Adam(1e-4, amsgrad=True),
+                      optimizer=keras.optimizers.Adam(0.1, amsgrad=True),
                       metrics=['accuracy'])
 
         model.summary()
         
         callbacks = [keras.callbacks.EarlyStopping(patience=3, verbose=1),
-                     keras.callbacks.CSVLogger('log.csv'),
-                     keras.callbacks.ModelCheckpoint(args.output_model_name+'.h5', save_best_only=False)]
+                     keras.callbacks.CSVLogger(f"log_{args.output_model_name}.csv"),
+                     keras.callbacks.ModelCheckpoint(args.output_model_name+'.h5', save_best_only=True),
+                     keras.callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=5, min_lr=1e-4)]
 
         # Save the model architecture to JSON
         with open(args.output_model_name+".json", "w") as json_file:
@@ -95,7 +92,8 @@ def main():
                       validation_data=helper.create_dataset(args.val_dir, args.batch_size),
                       epochs=args.epochs,
                       callbacks=callbacks,
-                      use_multiprocessing=True)
+                      #use_multiprocessing=True
+                      )
             
         except KeyboardInterrupt:
             print('KeyboardInterrupt caught, saving current weights as ' + args.output_model_name+'_resume.h5')

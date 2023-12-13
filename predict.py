@@ -4,6 +4,9 @@ CS7GV1 Computer Vision - Predict Identities
 
 Predict labels of images using specified model and directory of images
 
+Example usage:
+    python predict.py --dir test --model test --output-file test_predictions.csv 
+
 @author: K. Nolle
 """
 
@@ -12,6 +15,7 @@ import cv2
 import numpy as np
 import os
 import pandas as pd
+from sklearn.metrics import confusion_matrix
 import tensorflow as tf
 
 import helper
@@ -69,8 +73,22 @@ def main():
         
         df_results.loc[len(df_results)] = [filename, label, prediction]
         
-    # TODO: Calculate and print accuracy per class and overall
+        
+    # Cast label columns to int so that they can be compared
+    df_results["target_label"] = df_results["target_label"].astype("string")
+    df_results["predicted_label"] = df_results["predicted_label"].astype("string")
     
+    # Print confusion matrix
+    #cm = confusion_matrix(df_results["target_label"], df_results["predicted_label"])
+    #print("Confusion Matrix:\n-----------------\n")
+    #print(cm)
+    
+    # Calculate and print accuracy per class and overall
+    correct = len(df_results[df_results["target_label"] == df_results["predicted_label"]])
+    total = len(df_results)
+    print(f"Correct: {correct}")
+    print(f"Total: {total}")
+    print(f"Accuracy: {correct/total}")
     
     # Save results
     if args.output_file is not None:

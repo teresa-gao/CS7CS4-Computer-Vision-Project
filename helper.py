@@ -52,19 +52,82 @@ def create_dataset(directory_name, batch_size, img_height=HEIGHT, img_width=WIDT
     return ds
 
 
+RESNET_18_BLOCKS = [{'name' : 'conv2_',
+                     'repeat' : 2,
+                     'blocks' : [{'shape' : (3, 3),
+                                  'filters' : 64},
+                                 {'shape' : (3, 3),
+                                  'filters' : 64},]
+                     },
+                    {'name' : 'conv3_',
+                     'repeat' : 2,
+                     'blocks' : [{'shape' : (3, 3),
+                                  'filters' : 128},
+                                 {'shape' : (3, 3),
+                                  'filters' : 128},]
+                     },
+                    {'name' : 'conv4_',
+                     'repeat' : 2,
+                     'blocks' : [{'shape' : (3, 3),
+                                  'filters' : 256},
+                                 {'shape' : (3, 3),
+                                  'filters' : 256},]
+                     },
+                    {'name' : 'conv5_',
+                     'repeat' : 2,
+                     'blocks' : [{'shape' : (3, 3),
+                                  'filters' : 256},
+                                 {'shape' : (3, 3),
+                                  'filters' : 256},]
+                     },
+                   ]
+
 
 # Build a Keras model given some parameters
-def create_model(n_labels=LABELS, input_shape=(HEIGHT, WIDTH, 3)):
+def create_model(resnet_blocks, n_labels=LABELS, input_shape=(HEIGHT, WIDTH, 3)):
 
-  input_tensor = keras.Input(input_shape) 
-  x = input_tensor
-  x = keras.layers.Conv2D(16, (3,3), padding='same', input_shape=input_shape,activation='relu')(x)
-  x = keras.layers.BatchNormalization()(x)
-  x = keras.layers.Activation('relu')(x)
-  x = keras.layers.MaxPooling2D(2)(x)
-  x = keras.layers.Flatten()(x)
-  x = keras.layers.Dense(n_labels, activation='softmax')(x)
-  model = keras.Model(inputs=input_tensor, outputs=x)
+    input_tensor = keras.Input(input_shape) 
+    x = input_tensor
+  
+    # conv1
+    x = keras.layers.Conv2D(64, (7,7), padding='same', input_shape=input_shape, name="conv1")(x)
+    x = keras.layers.BatchNormalization(name="conv1_norm")(x)
+    x = keras.layers.Activation('relu', name="conv1_activate")(x)
+  
+    # max-pooling
+    x = keras.layers.MaxPooling2D((3, 3), strides=2)(x)
+  
+    # first block
+    for block in resnet_blocks:
+        for i in range (block["repeat"]):
+            x_skip = x
+           
+            j = 0
+            for layer in block["blocks"]:
+                if block["name"] in ['conv3_', 'conv4_', 'conv5_'] and i == 0 and j == 0:
+                    strides = (2, 2)
+                else:
+                    strides = (1, 1)
+                    
+                x = keras.layers.Conv2D(layer["filters"], layer["shape"], strides=strides, padding='same', name=block["name"]+str(i)+str(j))(x)
+                x = keras.layers.BatchNormalization(name=block["name"]+str(i)+str(j)+"_norm")(x)
+                x = keras.layers.Activation('relu', name=block["name"]+str(i)+str(j)+"_activate")(x)
+              
+                j += 1
+              
+            if x_skip.shape != x.shape:
+                if block["name"] in ['conv3_', 'conv4_', 'conv5_'] and i == 0:
+                    strides = (2, 2)
+                else:
+                    strides = (1, 1)
+                
+                x_skip = keras.layers.Conv2D(x.shape[-1], (1,1), strides=strides, padding='same')(x_skip)
+                
+            x = keras.layers.Add()([x, x_skip])
 
-  return model
+    x = keras.layers.Flatten()(x)
+    x = keras.layers.Dense(n_labels, activation='softmax')(x)
+    model = keras.Model(inputs=input_tensor, outputs=x)
+
+    return model
 
