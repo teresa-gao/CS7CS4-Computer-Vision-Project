@@ -18,8 +18,8 @@ import tensorflow.keras as keras
 #import h5py
 
 LABELS = 500
-WIDTH = 89
-HEIGHT = 109
+WIDTH = 178
+HEIGHT = 218
 
 
 def create_dataset(directory_name, batch_size, img_height=HEIGHT, img_width=WIDTH, n_labels=LABELS):
