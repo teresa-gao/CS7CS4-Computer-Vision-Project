@@ -17,9 +17,11 @@ Example usage:
 """
 
 import argparse
+import cv2
 import numpy as np
 import os
 import pandas as pd
+import random
 import shutil
 from sklearn.model_selection import train_test_split
 
@@ -28,6 +30,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--img-dir', help='Directory with unzipped images', type=str)
     parser.add_argument('--id-file', help='File name with identities', type=str)
+    parser.add_argument('--aug', help='Pass value 1 if training data should be augmented', type=int)
+    
     args = parser.parse_args()
     
     if args.img_dir is None:
@@ -40,24 +44,13 @@ def main():
 
         
     train_dir = "train"
+    train_dir_aug = "train_aug"
     val_dir = "validation"
     test_dir = "test"
     
     labels = 500
         
-    # Create missing directories
-    if not os.path.exists(train_dir):
-        print("Creating output directory " + train_dir)
-        os.makedirs(train_dir)
-        
-    if not os.path.exists(val_dir):
-        print("Creating output directory " + val_dir)
-        os.makedirs(val_dir)
-        
-    if not os.path.exists(test_dir):
-        print("Creating output directory " + test_dir)
-        os.makedirs(test_dir)
-        
+    
     # Read file with annotations
     df = pd.read_csv(args.id_file, sep=' ', names=["filename", "id"])
 
@@ -79,11 +72,64 @@ def main():
     # Split training data again into 20% validation and 80% training data
     filenames_train, filenames_val, id_train, id_val = train_test_split(filenames_train, id_train, stratify=id_train, test_size=0.2, random_state=123)
 
-    # Copy images in training set to directory and encode id in file name
-    print(f"Copying training data ({len(filenames_train)} files)...")
-    for i in range(len(filenames_train)):
-        shutil.copyfile(os.path.join(args.img_dir, filenames_train[i]), 
-                        os.path.join(train_dir, filenames_train[i].split('.')[0]+"_id-"+str(id_train[i])+".jpg"))
+    if args.aug is not None and args.aug == 1:    
+        # Create missing directory
+        if not os.path.exists(train_dir_aug):
+            print("Creating output directory " + train_dir_aug)
+            os.makedirs(train_dir_aug)
+        
+        # Copy images in training set to directory and encode id in file name
+        # Also augment images randomly and save to directiry
+        print(f"Copying and augmenting training data ({len(filenames_train)} files)...")
+        for i in range(len(filenames_train)):
+            filename = filenames_train[i]
+            label = id_train[i]
+                
+            # Read image
+            raw_data = cv2.imread(os.path.join(args.img_dir, filename))
+            
+            # Save original image
+            cv2.imwrite(os.path.join(train_dir_aug, filename.split('.')[0]+f"_0_id-{label}.jpg"), raw_data)
+            
+            for i in range(1, 5):
+                aug_img = raw_data
+                
+                # Randomly flip along y-axis
+                random.seed(int(label)+i)
+                p = random.random()
+                if p < 0.5:
+                    aug_img = cv2.flip(aug_img, 1)
+                
+                # Randomly gamma correct
+                invGamma = 1.0 / random.uniform(0.25, 2)
+                table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+                aug_img = cv2.LUT(aug_img, table)
+                
+                # Randomly rotate image
+                x = random.randint((aug_img.shape[1]/2)-25, (aug_img.shape[1]/2)+25)  # Random rotation center
+                y = random.randint((aug_img.shape[0]/2)-25, (aug_img.shape[0]/2)+25)
+                angle = random.uniform(-30, 30)  # Random angle
+                M = cv2.getRotationMatrix2D(center=(x, y), angle=angle, scale=1) # Rotation matrix
+                aug_img = cv2.warpAffine(aug_img, M=M, dsize=(aug_img.shape[1], aug_img.shape[0]))
+                
+                cv2.imwrite(os.path.join(train_dir_aug, filename.split('.')[0]+f"_{i}_id-{label}.jpg"), aug_img)
+    else:
+        # Create missing directory
+        if not os.path.exists(train_dir):
+            print("Creating output directory " + train_dir)
+            os.makedirs(train_dir)
+            
+        # Copy images in training set to directory and encode id in file name
+        print(f"Copying training data ({len(filenames_train)} files)...")
+        for i in range(len(filenames_train)):
+            shutil.copyfile(os.path.join(args.img_dir, filenames_train[i]), 
+                            os.path.join(train_dir, filenames_train[i].split('.')[0]+"_id-"+str(id_train[i])+".jpg"))
+         
+            
+    # Create missing directory  
+    if not os.path.exists(val_dir):
+        print("Creating output directory " + val_dir)
+        os.makedirs(val_dir)
         
     # Copy images in training set to directory and encode id in file name
     print(f"Copying validation data ({len(filenames_val)} files)...")
@@ -91,6 +137,12 @@ def main():
         shutil.copyfile(os.path.join(args.img_dir, filenames_val[i]), 
                         os.path.join(val_dir, filenames_val[i].split('.')[0]+"_id-"+str(id_val[i])+".jpg"))
     
+    
+    # Create missing directory
+    if not os.path.exists(test_dir):
+        print("Creating output directory " + test_dir)
+        os.makedirs(test_dir)
+        
     # Copy images in test set to directory and encode id in file name
     print(f"Copying test data ({len(filenames_test)} files)...")
     for i in range(len(filenames_test)):
