@@ -1,5 +1,6 @@
 import numpy as np
-from scipy.misc import imread, imsave, imresize
+from imageio import imread, imsave
+from skimage.transform import resize
 import sys
 import random
 import os
@@ -31,8 +32,8 @@ def save_priv(image, align_image, original_image, src, M, epsilon, model_name, o
 		os.makedirs(output_dir)
 	path = src + '-' + str(epsilon) + '.png'
 	with tf.gfile.Open(os.path.join(output_dir, path), 'w') as f:
-		image = imresize(image, (112, 112))
-		align_image = imresize(align_image, (112, 112))
+		image = resize(image, (112, 112))
+		align_image = resize(align_image, (112, 112))
 		image = re_align(image, align_image, original_image, M)
 		image = np.clip(image, original_image - epsilon, original_image + epsilon)
 		image = np.clip(image, 0, 255).astype(np.uint8)
@@ -69,8 +70,8 @@ def inference(x, model, use_prelogits=False, image_shape=(112, 112)):
 		normal_x = x
 		x = np.zeros((batchsize, image_shape[0], image_shape[1], 3))
 		for i in range(batchsize):
-			x[i] = imresize(normal_x[i], (image_shape[0], image_shape[1]))
-	x = torch.Tensor(x).cuda()
+			x[i] = resize(normal_x[i], (image_shape[0], image_shape[1]))
+	x = torch.Tensor(x) # .cuda()
 	x = x.permute(0, 3, 1, 2)
 	return model.forward(x, use_prelogits)
 

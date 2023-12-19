@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
-from scipy.misc import imread, imsave
+from imageio import imread, imsave
 def affine(x, vgrid, device='cuda'):
 	output = nn.functional.grid_sample(x, vgrid)
 	mask = torch.autograd.Variable(torch.ones(x.size())).to(device)
@@ -71,7 +71,7 @@ def Rotate(x, theta, device='cuda'):
 	return affine(x, grid, device)
 
 
-def input_diversity(x, std_proj=None, std_rotate=None, device='cuda'):
+def input_diversity(x, std_proj=None, std_rotate=None, device='cpu'):
 	if std_proj is not None:
 		n = x.size(0)
 		M = np.tile(np.array([[1, 0, 0], [0, 1, 0]]), (n, 1, 1)) + np.random.normal(scale=std_proj, size=(n, 2, 3))

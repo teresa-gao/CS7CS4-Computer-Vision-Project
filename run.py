@@ -11,7 +11,7 @@ from align import align, re_align
 from utils import save_priv, cosdistance, inference
 import math
 import argparse
-from scipy.misc import imread
+from imageio import imread
 from collections import OrderedDict
 from get_model import getmodel
 from tqdm import tqdm
@@ -38,7 +38,7 @@ parser.add_argument('--norm', help='select norm', type=str, default='l2')
 args = parser.parse_args()
 
 seed = 0
-
+random.seed(seed)
 
 def main():
     model, img_shape = getmodel(args.src_model)
@@ -52,25 +52,29 @@ def main():
         'gain3': Gain3
         }
     
-    # conduct attacker
+    # conduct attacker and targets
     attacker_persons = []
-    with open(args.input_file, 'r') as f:
-        for pair in f.readlines()[:500]:
-            attacker_person = pair.strip()
-            attacker_persons.append(attacker_person)
-            
-    random.seed(seed)
-    cnt = 0
-    batch_size = args.batch_size
-
-    # conduct targets, only 10 identities!
     target_nums = args.target_nums
     aligned_target_imgs = []
     target_persons = []
-    with open('targets/target_attacks.txt', 'r') as f:
-        for line in f.readlines():
-            target_person = line.strip()
-            target_persons.append(target_person)
+    target_indices = random.sample(range(500), target_nums)
+    with open(args.input_file, 'r') as f:
+        file_contents = f.readlines()
+        for i in range(500):
+            pair = file_contents[i]
+            attacker_person = pair.strip()
+            attacker_persons.append(attacker_person)
+
+            if i in target_indices:
+                person_name = attacker_person.split('\t')[0]
+                image_name = random.choice(os.listdir(f'data/lfw/{person_name}'))
+                target_persons.append(f'data/lfw/{person_name}/{image_name}')
+
+    with open('target/target_attacks.txt', 'w') as f:
+        f.write('\n'.join(target_persons))
+
+    cnt = 0
+    batch_size = args.batch_size
 
     for i in range(target_nums):
         target_img = imread(target_persons[i]).astype(np.float32)
@@ -102,7 +106,7 @@ def main():
             aligned_names.append("{}_{:04d}".format(attack_name, int(id2)))
             M.append(tmpM)
         aligned_images = np.array(aligned_images)
-        input_init = torch.Tensor(aligned_images).cuda()
+        input_init = torch.Tensor(aligned_images) # .cuda()
         input_init = input_init.permute(0, 3, 1, 2)
         init_feas = model.forward(input_init)
         init_feas = Variable(init_feas)
@@ -110,7 +114,7 @@ def main():
         # craft protected images 
         for epsilon in candidate_e:
             alpha = 1.5 * epsilon / iters
-            inputs = torch.Tensor(aligned_images.copy()).cuda()
+            inputs = torch.Tensor(aligned_images.copy()) # .cuda()
             inputs = inputs.permute(0, 3, 1, 2)
             sum_grad = torch.zeros_like(inputs)
             min_img = torch.clamp(inputs - epsilon, min=0)

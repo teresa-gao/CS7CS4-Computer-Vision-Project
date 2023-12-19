@@ -36,7 +36,7 @@ def maximum_mean_discrepancy(x, y, kernel= gaussian_kernel_matrix):
 
     return cost
 
-def mmd_loss(source_features, target_features, use_gpu = True):
+def mmd_loss(source_features, target_features, use_gpu=False):
 
     sigmas = [
         1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 5, 10, 15, 20, 25, 30, 35, 100,

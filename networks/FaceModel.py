@@ -2,7 +2,7 @@ import os
 from six.moves import urllib
 import torch
 
-def get_model(url, net, embedding_size, no_gpu=False):
+def get_model(url, net, embedding_size, no_gpu=True):
 	"""
 		:param url: a string, the url
 		:param net: the backbone model
@@ -13,8 +13,12 @@ def get_model(url, net, embedding_size, no_gpu=False):
 	model_name = url.split('/')[-1]
 	try:
 		print('Load existing checkpoint')
-		checkpoint = torch.load('./ckpts/{}'.format(model_name), 
+		if not no_gpu:
+			checkpoint = torch.load('./ckpts/{}'.format(model_name),
 				map_location=lambda storage, loc: storage.cuda())
+		else:
+			checkpoint = torch.load('./ckpts/{}'.format(model_name),
+				map_location=torch.device('cpu'))
 	except Exception:
 		print('No existing checkpoint, now downloading online')
 		if not os.path.exists('./ckpts/'):
@@ -28,8 +32,12 @@ def get_model(url, net, embedding_size, no_gpu=False):
 			'./ckpts/{}'.format(model_name))
 		print('Finish downloading')
 		print('Load checkpoint')
-		checkpoint = torch.load('./ckpts/{}'.format(model_name), 
+		if not no_gpu:
+			checkpoint = torch.load('./ckpts/{}'.format(model_name),
 				map_location=lambda storage, loc: storage.cuda())
+		else:
+			checkpoint = torch.load('./ckpts/{}'.format(model_name),
+				map_location=torch.device('cpu'))
 
 	if isinstance(checkpoint, dict) and 'state_dict' in checkpoint:
 		net.load_state_dict(checkpoint['state_dict'])
@@ -49,7 +57,7 @@ def get_model(url, net, embedding_size, no_gpu=False):
 class FaceModel:
 	def __init__(self, url, net, **kwargs):
 		embedding_size = kwargs.get('embedding_size', 512)
-		no_gpu = kwargs.get('no_gpu', False)
+		no_gpu = kwargs.get('no_gpu', True)
 		# get the pytorch model
 		output, input_device = get_model(
 				net=net,
