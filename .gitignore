@@ -2,5 +2,4 @@ ckpts/
 data/
 env/
 output/
-target/
 **/__pycache__/

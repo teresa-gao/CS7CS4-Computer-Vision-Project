@@ -13,13 +13,14 @@ This project is tested under the following environment settings:
 - Torchvision: >= 0.4.0
 
 ### Data Preparation
-- Please download [LFW](https://hal.inria.fr/file/index/docid/321923/filename/Huang_long_eccv2008-lfw.pdf), Put LFW dataset and `pairs.txt` to `data`.
+- Please download [LFW](https://hal.inria.fr/file/index/docid/321923/filename/Huang_long_eccv2008-lfw.pdf), Put LFW dataset in `data`; add `pairs.txt` to `data/lfw/`.
 - Put some specific target images to `targets`
 
 ### Crafting Identity Masks
-Running command for crafting identity masks:
-```python
-python run.py
+```
+python generate_all_image_lists.py --dir data/celeba/test/ --n 100 --save_filename subset_100.txt
+python generate_all_image_lists.py --dir data/lfw/ --n 10 --save_filename subset_10.txt
+python run.py --input_images data/celeba/test/subset_100.txt --output output/celeba/test/
 ```
 
 ### Citation

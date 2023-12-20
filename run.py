@@ -25,14 +25,14 @@ torch.manual_seed(0)
 torch.cuda.manual_seed_all(0)
 np.random.seed(0)
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_file', help='Input directory with images.', type=str, default='data/pairs.txt')
-parser.add_argument('--num_iter', help='Number of iterations.', type=int, default=100)
+parser.add_argument('--input_images', help='File with list of all input images to apply face masks to', type=str, default='data/celeba/test/subset_100.txt')
+parser.add_argument('--target_images', help='File with list of images generate face masks for other images', type=str, default='data/lfw/subset_10.txt')
+parser.add_argument('--num_iter', help='Number of iterations.', type=int, default=20)
 parser.add_argument('--src_model', help='White-box model', type=str, default='ArcFace', choices=threshold.keys())
 parser.add_argument('--ensemble_image', help='whether to use multiple images', type=int, default=0, choices=[0, 1])
 parser.add_argument('--batch_size', help='batch size', type=int, default=1)
-parser.add_argument('--output', help='output directory', type=str, default='output/exppriv')
+parser.add_argument('--output', help='output directory', type=str, default='output/celeba')
 parser.add_argument('--gain', help='gain function', type=str, default='gain3')
-parser.add_argument('--target_nums', help='target_nums', type=int, default=10)
 parser.add_argument('--gamma', help='gamma', type=float, default=0.0)
 parser.add_argument('--norm', help='select norm', type=str, default='l2')
 args = parser.parse_args()
@@ -53,42 +53,28 @@ def main():
         }
     
     # conduct attacker and targets
-    attacker_persons = []
-    target_nums = args.target_nums
-    aligned_target_imgs = []
-    target_persons = []
-    target_indices = random.sample(range(500), target_nums)
-    with open(args.input_file, 'r') as f:
-        file_contents = f.readlines()
-        for i in range(500):
-            pair = file_contents[i]
-            attacker_person = pair.strip()
-            attacker_persons.append(attacker_person)
-
-            if i in target_indices:
-                person_name = attacker_person.split('\t')[0]
-                image_name = random.choice(os.listdir(f'data/lfw/{person_name}'))
-                target_persons.append(f'data/lfw/{person_name}/{image_name}')
-
-    with open('target/target_attacks.txt', 'w') as f:
-        f.write('\n'.join(target_persons))
+    with open(args.input_images, 'r') as f:
+        attacker_image_filenames = f.readlines()
+    with open(args.target_images, 'r') as f:
+        target_image_filenames = f.readlines()
 
     cnt = 0
     batch_size = args.batch_size
 
-    for i in range(target_nums):
-        target_img = imread(target_persons[i]).astype(np.float32)
+    aligned_target_imgs = []
+    for target_image_filename in target_image_filenames:
+        target_img = imread(target_image_filename.strip()).astype(np.float32)
         align_target_img, _= align(target_img)
         align_target_img = cv2.resize(align_target_img, (img_shape[1], img_shape[0]))
         aligned_target_imgs.append(align_target_img)
-    aligned_target_imgs = np.array(aligned_target_imgs)        
+    aligned_target_imgs = np.array(aligned_target_imgs)
 
     # extract features of targets
     target_feas = inference(aligned_target_imgs, model, image_shape = img_shape)
     target_feas = Variable(target_feas)
     
     # extract initial features of attackers
-    n = len(attacker_persons)
+    n = len(attacker_image_filenames)
     m = 1.0
     for i in tqdm(range(0, n, batch_size)):
         l, r = i, min(i + batch_size, n)
@@ -97,13 +83,13 @@ def main():
         aligned_names = []
         M = []
         for j in range(l, r):
-            attack_name, id1, id2 = attacker_persons[j].split('\t')
-            original_img = imread("data/lfw/{}/{}_{:04d}.jpg".format(attack_name, attack_name, int(id2))).astype(np.float32)
+            attacker_image_filename = attacker_image_filenames[j]
+            original_img = imread(attacker_image_filename.strip()).astype(np.float32)
             original_images.append(original_img)
             align_img, tmpM = align(original_img)
             align_img = cv2.resize(align_img, (img_shape[1], img_shape[0]))
             aligned_images.append(align_img)
-            aligned_names.append("{}_{:04d}".format(attack_name, int(id2)))
+            aligned_names.append(attacker_image_filename)
             M.append(tmpM)
         aligned_images = np.array(aligned_images)
         input_init = torch.Tensor(aligned_images) # .cuda()
@@ -136,7 +122,7 @@ def main():
                         inputs.clone().reshape(batch_size,-1))
                 
                 # search optimal target 
-                for idx in range(target_nums):
+                for idx in range(len(target_image_filenames)):
                     model.zero_grad()
                     loss_i = torch.mean((adv_feas - init_feas) ** 2)
                     loss_t = torch.mean((adv_feas - target_feas[idx]) ** 2)
@@ -182,7 +168,7 @@ def main():
             adv_images = adv_images.detach().permute(0, 2, 3, 1).cpu().numpy()
                 
             for j in range(batch_size):
-                attacker_name = attacker_persons[l + j].split('\t')[0]
+                attacker_name = os.path.splitext(os.path.basename(attacker_image_filenames[l + j]))[0]
                 _ = save_priv(adv_images[j], aligned_images[j], original_images[j], attacker_name, M[j], epsilon, args.src_model, args.output)
 
 def submodular(target_feas, init_feas, tmp_advs, model, Gain):
