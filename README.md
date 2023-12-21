@@ -12,6 +12,7 @@ The face masking model used in this project is from "Towards Face Encryption by 
 	    pages     = {3897-3907}
 	}
 
+Link to original repos: https://github.com/ShawnXYang/TIP-IM
 ### Data Preparation
 
 - Download [LFW](https://hal.inria.fr/file/index/docid/321923/filename/Huang_long_eccv2008-lfw.pdf). Put the LFW dataset in `data`; add `pairs.txt` to `data/lfw/`.
@@ -36,6 +37,4 @@ python generate_all_image_lists.py --dir data/lfw/ --n 10 --save_filename subset
 python run.py --input_images data/celeba/test/subset_100.txt --output output/celeba/test/
 ```
 
-### Citation
-If you benefit from our work in your research, please consider to cite the following paper:
 
