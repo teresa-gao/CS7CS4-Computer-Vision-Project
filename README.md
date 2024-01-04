@@ -1,5 +1,7 @@
 # CS7CS4 Computer Vision Project
-## Protection Against Unwanted Facial Recognition
+# Protection Against Unwanted Facial Recognition
+
+## face-masking-model
 
 The face masking model used in this project is from "Towards Face Encryption by Generating Adversarial Identity Masks."
 
@@ -34,7 +36,8 @@ Example usage:
 ```
 python generate_all_image_lists.py --dir data/celeba/test/ --n 100 --save_filename subset_100.txt
 python generate_all_image_lists.py --dir data/lfw/ --n 10 --save_filename subset_10.txt
-python run.py --input_images data/celeba/test/subset_100.txt --output output/celeba/test/
+rm -rf ckpts/ # for a clean start without loading existing checkpoints
+python run.py --input_images data/celeba/test/subset_100.txt --target_images data/lfw/subset_10.txt --output output/celeba/test/
 ```
 
 
