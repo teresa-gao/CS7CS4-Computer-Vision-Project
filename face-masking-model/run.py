@@ -45,7 +45,7 @@ def main():
     iters = args.num_iter
 
     cnt_pairs = 0
-    candidate_e = [12]
+    candidate_e = [8, 10, 12]
     func = {
         'gain1': Gain1,
         'gain2': Gain2,
@@ -163,7 +163,6 @@ def main():
                 sum_grad = tmp_grads[best_idx]
                 
                 adv_images = tmp_advs[best_idx]
-                print(tmp_losses[best_idx], best_idx)
                 adv_images = adv_images.detach().requires_grad_(True)
             adv_images = adv_images.detach().permute(0, 2, 3, 1).cpu().numpy()
                 
